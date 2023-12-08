@@ -32,6 +32,7 @@ def fetch_url_with_html_tree(url: str, max_attempts: int = 3) -> lxml.etree:
     """
     Fetches the HTML of a webpage and parses it into a lxml HTML tree. If the URL has been 
     parsed, return the information of that URL from the usls.json.
+    The test for this function is in tests.py module.
 
     :param url: The URL of the webpage.
     :param max_attempts: The maximum number of attempts to fetch the webpage.
@@ -74,3 +75,7 @@ def fetch_url_with_html_tree(url: str, max_attempts: int = 3) -> lxml.etree:
                     f.write('\n')
                 return None
     return {"title": title, "abstract": abstract}
+
+
+if __name__ == '__main__':
+    pass
