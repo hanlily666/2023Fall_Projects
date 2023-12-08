@@ -1,27 +1,42 @@
 """
-
+This module contains functions that are imported into the Jupyter Notebook. 
+These functions facilitate the data analysis process, providing a clearer understanding for the reader.
 """
+import re
 import requests
 from requests.exceptions import RequestException
 import lxml.html
 import lxml.etree as etree
 import json
 import os
-from time import sleep
+from urllib.parse import urlparse
+
+
+def extract_the_hostname(url: str) -> str:
+    """
+    Extract the hostname from the url.
+
+    :param url: The URL of the webpage.
+    :return: hostname of the url.
+    >>> extract_the_hostname('https://stackoverflow.com/questions/39901550/python-userwarning-this-pattern-has-match-groups-to-actually-get-the-groups')
+    'stackoverflow.com'
+
+    >>> extract_the_hostname('ddd') is None
+    True
+    """
+    hostname = urlparse(url).hostname
+    return hostname if hostname else None
 
 
 def fetch_url_with_html_tree(url: str, max_attempts: int = 3) -> lxml.etree:
     """
-    Fetches the HTML of a webpage and parses it into an lxml HTML tree.
+    Fetches the HTML of a webpage and parses it into a lxml HTML tree. If the URL has been 
+    parsed, return the information of that URL from the usls.json.
 
     :param url: The URL of the webpage.
     :param max_attempts: The maximum number of attempts to fetch the webpage.
-    :return: An lxml HTML tree, or None if an error occurred.
-
-    >>> fetch_url_with_html_tree('https://www.forbes.com/sites/cindygordon/2022/?sh=5c2410226989')
-    
+    :return: A lxml HTML tree, or None if an error occurred.
     """
-    # Check if the URL is already in the JSON file
     if os.path.exists('urls.json'):
         with open('urls.json', 'r') as f:
             for line in f:
@@ -35,23 +50,27 @@ def fetch_url_with_html_tree(url: str, max_attempts: int = 3) -> lxml.etree:
     request_count = 0
     while tree is None:
         try:
-            # request_count += 1
-            r = requests.get(url)
             request_count += 1
+            r = requests.get(url)
             if r.text.strip() == "":
                 print(f"Empty response from {url}. Skipping this URL.")
                 return None
-            # tree = lxml.html.fromstring(r.text)
-            # Save the URL and the HTML content to the JSON file
-            # with open('urls.json', 'a') as f:
-            #     json.dump({url: r.text}, f)
-            #     f.write('\n')
+            content = r.text
+            # Remove XML and Unicode declarations
+            content = re.sub(r'^\s*<\?xml.*\?>', '', content)
+            content = re.sub(r'^\s*<\?unicode.*\?>', '', content)
+            tree = lxml.html.fromstring(content)        
+            title = tree.xpath('//h1/span/following-sibling::text()')
+            abstract = tree.xpath('//blockquote/span/following-sibling::text()')
+            with open('urls.json', 'a') as f:
+                json.dump({url: {"title": title, "abstract": abstract}}, f)
+                f.write('\n')
         except RequestException as e:
+            print(f"Error retrieving {url}. Attempt {request_count}.")
             if request_count == max_attempts:
-                print("Repeated requests still don't work. Giving up.")
+                print(f"Failed to retrieve {url} after {max_attempts} attempts. Skipping this URL.")
+                with open('urls.json', 'a') as f:
+                    json.dump({url: str(e)}, f)
+                    f.write('\n')
                 return None
-            else:
-                t = 10 * request_count  # number of seconds to wait.
-                print('Error retrieving web page. Will retrying in {t} seconds...')
-                sleep(t)
-    return tree
+    return {"title": title, "abstract": abstract}
