@@ -38,6 +38,8 @@ def fetch_url_with_html_tree(url: str, max_attempts: int = 3) -> lxml.etree:
     :param max_attempts: The maximum number of attempts to fetch the webpage.
     :return: A lxml HTML tree, or None if an error occurred.
     """
+    title = None
+    abstract = None
     if os.path.exists('urls.json'):
         with open('urls.json', 'r') as f:
             for line in f:
